@@ -5,18 +5,20 @@ public class PhilTest {
     private static Lock lock = new ReentrantLock();
     private static Condition phil [] = new Condition[NUM_PHILS];
     private static int states [] = new int[NUM_PHILS];
+    private static int eatCounter [] = new int[NUM_PHILS];
     
     public static void init ( ) {
         for (int k=0; k<NUM_PHILS; k++) {
             phil[k] = lock.newCondition();
             states[k] = THINKING;
+            eatCounter[k] = 0;
         }
     }
     public static void main (String a[]) {
         init();
         Philosopher p[] = new Philosopher[NUM_PHILS];
         for (int k=0; k<p.length; k++) {
-            p[k] = new Philosopher(lock, phil, states, NUM_PHILS, k); 
+            p[k] = new Philosopher(lock, phil, states, NUM_PHILS, k, eatCounter); 
             p[k].start();
         }
     }
