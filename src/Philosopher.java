@@ -1,5 +1,6 @@
-import java.util.Random;
+ import java.util.Random;
 import java.util.concurrent.locks.*;
+ 
 public class Philosopher extends Thread {
     private static int WAITING=0, EATING=1, THINKING=2;
     private Lock lock;
@@ -9,40 +10,63 @@ public class Philosopher extends Thread {
     private int NUM_PHILS;
     private int id;
     private final int TURNS = 20;
-    private static int starving = 0;
+    
     public Philosopher (Lock l, Condition p[], int st[], int num, int id, int ec[]) {
         lock = l; phil = p; states = st; this.id = id; eatCount = ec;
         NUM_PHILS = num;
     }
+    
+    // Random sleeps are necessary because each philosopher is coupled with the two philosophers their left and right side
+    // if there is a consistent time between taking sticks and putting sticks then there will always be a patter especially 
+    // when the number of philosophers at the table is low. 
     public void run () {
         for (int k=0; k<TURNS; k++) {
-        //try { sleep(100); } catch (Exception ex) { /* lazy */}
+        Random rand = new Random();
+        int eatFor = rand.nextInt(21) + 5;
+        int waitFor = rand.nextInt(51) + 5;
         takeSticks(id); 
-        try { sleep(20); } catch (Exception ex) { }
+        try { sleep(eatFor); } catch (Exception ex) { }
         putSticks(id);
-        output();
+        try { sleep(waitFor); } catch (Exception ex) { }
+        //output();
         }
     }
     
+    // This method finds the lowest eatCount value then compares it to the current threads 
+    // eatCount if this current thread has not violated the policy which is each philosopher 
+    // can only eat at most five more then its peers then the method returns true else returns false
     public boolean checkPhase(int eatC)
     {
     	int hungriest = eatC;
-    	int hungryPos = 0;
+    	
+    	// Iterate through eatCount array to find the lowest eatCount value
     	for(int i = 0; i<eatCount.length; i++)
     	{
     		if(eatCount[i] < hungriest)
     		{
     			hungriest = eatCount[i];
-    			hungryPos = i;
     		}
     	}
-    	if((Math.abs((eatC - hungriest)) % 5 == 0) && eatC > hungriest)
+    	
+    	// After finding the lowest eat count and calling that hungriest we take 
+    	// the difference to see if the thread currently trying to eat has already eaten 
+    	// this round. This logic ensures that every philosopher eats an equal amount of times
+    	// compared to his peers. Therefore no thread falls behind and no thread starves.
+    	if(eatC == 0)
+    	{
+    		return true;
+    	}
+    	else if((Math.abs((eatC - hungriest)) % 5 == 0) && eatC != hungriest)
 		{
-    		starving = hungryPos;
 			return false;
 		}
     	return true;
+    	/*
+    	 * if((Math.abs((eatC - hungriest)) >= 1)
+    	 * To make our policy that each thread can only eat one more times then its peers
+    	 */
     }
+    
     public void takeSticks (int id) {
         lock.lock();
         try {
@@ -50,9 +74,11 @@ public class Philosopher extends Thread {
             	{
             		states[id] = EATING;
             		eatCount[id]++;
+            		//System.out.println("Phil " + id + " eats" + " this many times " + eatCount[id]);
             	}
             else {
             states[id] = WAITING;
+            //System.out.println("Phil " + id + " waiting" + " this many times " + eatCount[id]);
             phil[id].await();
             }
         }
@@ -62,6 +88,7 @@ public class Philosopher extends Thread {
             lock.unlock();
         }
     } 
+    
     public void output() {
         lock.lock();
         for (int k=0; k<states.length; k++)
@@ -84,6 +111,7 @@ public class Philosopher extends Thread {
         lock.unlock();
         System.out.println();
     }
+    
     public void putSticks (int id) {
         lock.lock();
         try {
@@ -93,12 +121,14 @@ public class Philosopher extends Thread {
                 phil[leftof(id)].signal();
                 states[leftof(id)] = EATING;
                 eatCount[leftof(id)]++;
+                //System.out.println("Phil " + leftof(id) + " eats" + " this many times " + eatCount[leftof(id)]);
             }
             if (states[rightof(id)] == WAITING
             && states[rightof(rightof(id))] != EATING && checkPhase(eatCount[rightof(id)])) {
                 phil[rightof(id)].signal(); 
                 states[rightof(id)] = EATING;
                 eatCount[rightof(id)]++;
+                //System.out.println("Phil " + rightof(id) + " eats" + " this many times " + eatCount[rightof(id)]);
             }
         } finally {
             lock.unlock();
@@ -111,10 +141,11 @@ public class Philosopher extends Thread {
             retval = NUM_PHILS-1;
         return retval;
     }
+    
     private int rightof (int id) {
         int retval = id+1;
         if (retval == NUM_PHILS) // not valid id
             retval=0;
         return retval;
     }
-    }
+}
